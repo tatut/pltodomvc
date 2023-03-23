@@ -36,6 +36,8 @@ toggle(Id) :-
                   toggle(Complete, NewComplete),
                   assertz(todo(Id, Name, NewComplete)) )).
 
+destroy(Id) :- transaction(( retractall(todo(Id,_,_)) )).
+
 todolist(Sorted) :-
     findall(todo(Id,Name,Complete),
             todo(Id,Name,Complete),
@@ -68,14 +70,15 @@ checked(true, checked).
 checked(false, '').
 
 todo_item(todo(Id, Name, Complete)) -->
-    { onclick(toggle(Id), Click),
+    { onclick(toggle(Id), Toggle),
+      onclick(destroy(Id), Destroy),
       todo_class(Complete, Cls),
       checked(Complete, Checked) },
-    html([li([Cls, Click],
+    html([li([Cls, Toggle],
              [div(class='view',
                   [input([class=toggle, type='checkbox', Checked]),
                    label(Name),
-                   button(class=destroy,[])])])]).
+                   button([class=destroy,Destroy],[])])])]).
 
 todo_items -->
     { todolist(Items) },
