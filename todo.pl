@@ -1,7 +1,9 @@
 :- use_module(library(http/html_write)).
 :- use_module(library(dcg/high_order)).
 :- dynamic todo/3.
+:- dynamic view/1.
 :- prolog_listen(todo/3, updated(todo/3)).
+:- prolog_listen(view/1, updated(view/1)).
 
 max_todo_id(MaxId) :-
     findall(Id, todo(Id,_,_), Lst),
@@ -38,7 +40,9 @@ toggle(Id) :-
 
 destroy(Id) :- transaction(( retractall(todo(Id,_,_)) )).
 
-todolist(Sorted) :-
+clear_completed :- transaction(( retractall(todo(_,_,true)) )).
+
+todolist(Complete, Sorted) :-
     findall(todo(Id,Name,Complete),
             todo(Id,Name,Complete),
             Lst),
@@ -81,12 +85,45 @@ todo_item(todo(Id, Name, Complete)) -->
                    button([class=destroy,Destroy],[])])])]).
 
 todo_items -->
-    { todolist(Items) },
+    { view(V), todolist(V, Items) },
     html(ul(class='todo-list', \sequence(todo_item, Items))).
 
+items(1,"item").
+items(N,"items").
+
+set_view(V) :-
+    transaction(( retractall(view(_)),
+                  asserta(view(V)) )).
+
+todo_footer -->
+    { view(V),
+      aggregate_all(count, todo(_, _, false), Left),
+      items(Left, Label) },
+    html(span(class='todo-count',[strong(Left)," ",Label," left"])).
+
+view_links -->
+    { view(V) },
+    html(ul(class='filters', [li(a(href='#/all', "All")),
+                              li(a(href='#/active', "Active")),
+                              li(a(href='#/completed', "Completed"))])).
+
+clear_button -->
+    { (once(todo(_,_,true))
+       , Style=""
+      ; Style="display: none;"),
+      onclick(clear_completed, Click) },
+    html(button([class='clear-completed',style=Style,Click], "Clear completed")).
+
 render :-
-    morphdom('app', html(section([id='app',class='main'], \todo_items))).
+    morphdom('app', html(section([id='app',class='main'], \todo_items))),
+    morphdom('footer', html(section([id='footer',class='footer'],
+                                    [\todo_footer,
+                                     \view_links,
+                                     \clear_button]))).
 
 updated(Pred, Action, Context) :-
     writeln(updated(pred(Pred), action(Action), context(Context))),
     _ := render().
+
+start :-
+    transaction(( asserta(view(_)) )).

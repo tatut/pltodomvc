@@ -8,7 +8,7 @@
     <script>
     new SWIPL({}).then((ok,_) => {
         P = ok.prolog;
-        P.consult("todo")
+        P.consult("todo").then(_=>P.call("start"));
     });
 
       _renderReq=null;
@@ -34,5 +34,8 @@
       <!-- hidden by default, shown when rendered by app -->
       <section id="app" class="main" style="display: none;">
       </section>
+
+      <footer id="footer" class="footer" data-bind="visible: completedCount() || remainingCount()" style="display: none;">
+      </footer>
   </body>
 </html>
