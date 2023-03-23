@@ -8,7 +8,9 @@
     <script>
     new SWIPL({}).then((ok,_) => {
         P = ok.prolog;
-        P.consult("todo").then(_=>P.call("start"));
+        hash = _=>P.call("on_hash_change(\""+window.location.hash+"\")");
+        P.consult("todo").then(_=>hash());
+        window.onhashchange = hash;
     });
 
       _renderReq=null;

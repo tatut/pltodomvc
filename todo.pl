@@ -42,7 +42,10 @@ destroy(Id) :- transaction(( retractall(todo(Id,_,_)) )).
 
 clear_completed :- transaction(( retractall(todo(_,_,true)) )).
 
-todolist(Complete, Sorted) :-
+todolist(View, Sorted) :-
+    ( (View = true, Complete = true);
+      (View = false, Complete = false);
+      Complete = _),
     findall(todo(Id,Name,Complete),
             todo(Id,Name,Complete),
             Lst),
@@ -92,6 +95,7 @@ items(1,"item").
 items(N,"items").
 
 set_view(V) :-
+    writeln(set_view(V)),
     transaction(( retractall(view(_)),
                   asserta(view(V)) )).
 
@@ -101,11 +105,15 @@ todo_footer -->
       items(Left, Label) },
     html(span(class='todo-count',[strong(Left)," ",Label," left"])).
 
+link(Hash, Label, V) -->
+    { (view(V) ->  Class = 'selected'; Class = '') },
+    html(li(a([href=Hash, class=Class], Label))).
+
 view_links -->
     { view(V) },
-    html(ul(class='filters', [li(a(href='#/all', "All")),
-                              li(a(href='#/active', "Active")),
-                              li(a(href='#/completed', "Completed"))])).
+    html(ul(class='filters', [\link('#/all', "All", all),
+                              \link('#/active', "Active", false),
+                              \link('#/completed', "Completed", true)])).
 
 clear_button -->
     { (once(todo(_,_,true))
@@ -125,5 +133,11 @@ updated(Pred, Action, Context) :-
     writeln(updated(pred(Pred), action(Action), context(Context))),
     _ := render().
 
-start :-
-    transaction(( asserta(view(_)) )).
+
+on_hash_change("#/all") :- set_view(all).
+on_hash_change("#/completed") :- set_view(true).
+on_hash_change("#/active") :- set_view(false).
+
+debug_view :-
+    view(V),
+    writeln(debug_view(V)).
