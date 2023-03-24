@@ -5,10 +5,12 @@
 :- prolog_listen(todo/3, updated(todo/3)).
 :- prolog_listen(view/1, updated(view/1)).
 
+/* Determine current max id for todo */
 max_todo_id(MaxId) :-
     findall(Id, todo(Id,_,_), Lst),
     max_list(Lst, MaxId).
 
+/* Create new todo with given name using the next max id  */
 add_todo(Name) :-
     transaction(( (max_todo_id(Id) -> MaxId=Id; MaxId=0),
                   NewId is MaxId + 1,
@@ -23,11 +25,6 @@ add_todo :-
 
 clear_todos() :-
     transaction(( retractall(todo(_,_,_)) )).
-
-mark_complete(Id) :-
-    transaction(( todo(Id, Name, _),
-                  retractall(todo(Id,Name,_)),
-                  assertz(todo(Id, Name, true)) )).
 
 toggle(true, false).
 toggle(false, true).
@@ -65,7 +62,6 @@ html_to_string(Html, String) :-
 /* Call JS morphdom to match our UI */
 morphdom(ElementId, Html) :-
     html_to_string(Html, HtmlString),
-    Elt := document.getElementById(ElementId),
     _ := morphdom(ElementId, HtmlString).
 
 onclick(Term, onclick=C) :-
@@ -92,16 +88,15 @@ todo_items -->
     html(ul(class='todo-list', \sequence(todo_item, Items))).
 
 items(1,"item").
-items(N,"items").
+items(N,"items") :- N \= 1.
 
 set_view(V) :-
-    writeln(set_view(V)),
+    % writeln(set_view(V)),
     transaction(( retractall(view(_)),
                   asserta(view(V)) )).
 
 todo_footer -->
-    { view(V),
-      aggregate_all(count, todo(_, _, false), Left),
+    { aggregate_all(count, todo(_, _, false), Left),
       items(Left, Label) },
     html(span(class='todo-count',[strong(Left)," ",Label," left"])).
 
@@ -110,7 +105,6 @@ link(Hash, Label, V) -->
     html(li(a([href=Hash, class=Class], Label))).
 
 view_links -->
-    { view(V) },
     html(ul(class='filters', [\link('#/all', "All", all),
                               \link('#/active', "Active", false),
                               \link('#/completed', "Completed", true)])).
@@ -130,14 +124,12 @@ render :-
                                      \clear_button]))).
 
 updated(Pred, Action, Context) :-
-    writeln(updated(pred(Pred), action(Action), context(Context))),
+    % writeln(updated(pred(Pred), action(Action), context(Context))),
     _ := render().
 
 
-on_hash_change("#/all") :- set_view(all).
-on_hash_change("#/completed") :- set_view(true).
-on_hash_change("#/active") :- set_view(false).
-
-debug_view :-
-    view(V),
-    writeln(debug_view(V)).
+on_hash_change(V) :-
+    (V="#/completed", set_view(true));
+    (V="#/active", set_view(false));
+    % Fallback to all, if we have no hash route
+    set_view(all).
